@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  temporal:
+    image: temporalio/auto-setup:1.22
+    container_name: temporal
+    ports:
+      - "7233:7233" # gRPC port
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgres
+    depends_on:
+      - temporal-postgres
+
+  temporal-web:
+    image: temporalio/web:latest
+    container_name: temporal-web
+    ports:
+      - "8088:8088" # Web UI
+    environment:
+      - TEMPORAL_GRPC_ENDPOINT=temporal:7233
+    depends_on:
+      - temporal
+
+  temporal-postgres:
+    image: postgres:13
+    container_name: temporal-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=temporal
+      - POSTGRES_PASSWORD=temporal
+      - POSTGRES_DB=temporal
+
+  your-python-app:
+    build:
+      context: .
+    container_name: your-python-app
+    command: ["python", "app.py", "worker"]
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_HOST=temporal:7233
